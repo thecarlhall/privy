@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"os"
+	"log"
 
 	"code.google.com/p/goauth2/oauth"
 	"github.com/google/go-github/github"
@@ -34,8 +34,7 @@ func ListRepos(config *Config) {
 func main() {
 	file, e := ioutil.ReadFile("./privy.cfg")
 	if e != nil {
-		fmt.Printf("File error: %v\n", e)
-		os.Exit(1)
+		log.Fatal("File error: ", e)
 	}
 
 	var config Config
