@@ -2,12 +2,14 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 
 	"code.google.com/p/goauth2/oauth"
 	"github.com/google/go-github/github"
+
+	"github.com/wsxiaoys/terminal"
+	"github.com/wsxiaoys/terminal/color"
 )
 
 func ListRepos(config *Config) {
@@ -18,16 +20,30 @@ func ListRepos(config *Config) {
 	client := github.NewClient(t.Client())
 
 	// list all repositories for the authenticated user
-	repos, _, err := client.Repositories.ListByOrg(config.Organization, nil)
+	for _, repo := range config.Repositories {
+		prs, _, _ := client.PullRequests.List(config.Organization, repo, nil)
 
-	if err != nil {
-		fmt.Println(err)
-	}
+		if len(prs) == 0 {
+			continue
+		}
 
-	//fmt.Println(github.Stringify(repos))
-	fmt.Println("Repositories")
-	for _, repo := range repos {
-		fmt.Printf("  %s\n", *repo.Name)
+		terminal.Stdout.Color("y")
+		// Get color codes here: https://github.com/wsxiaoys/terminal/blob/master/color/color.go
+		color.Printf("@{!kW}**** Pull requests for [%s]", repo)
+		color.Println()
+		for _, pr := range prs {
+			color.Printf("@w%d: %s\n", *pr.Number, *pr.Title)
+			if len(*pr.Body) == 0 {
+				color.Println("@r<no body>")
+			} else {
+				color.Printf("@b%s\n", *pr.Body)
+			}
+
+			comments, _, _ := client.PullRequests.ListComments(config.Organization, repo, *pr.Number, nil)
+			color.Printf("@{/}(%d comments)\n", len(comments))
+			color.Printf("@g%s\n", *pr.HTMLURL)
+			color.Println()
+		}
 	}
 }
 
@@ -39,7 +55,7 @@ func main() {
 
 	var config Config
 	json.Unmarshal(file, &config)
-	fmt.Printf("Config: %v\n", config)
+	//fmt.Printf("Config: %v\n", config)
 
 	ListRepos(&config)
 }
