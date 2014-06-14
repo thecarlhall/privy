@@ -12,7 +12,46 @@ import (
 	"github.com/wsxiaoys/terminal/color"
 )
 
-func ListRepos(config *Config) {
+func printPullRequest(client *github.Client, config *Config, repo *string, pr *github.PullRequest) {
+	color.Printf("@w[%d] %s\n", *pr.Number, *pr.Title)
+	if len(*pr.Body) == 0 {
+		color.Println("@r<no body>")
+	} else {
+		color.Printf("@b%s\n", (*pr.Body)[:120])
+	}
+
+	comments, _, err := client.PullRequests.ListComments(config.Organization, *repo, *pr.Number, nil)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	color.Printf("@{/}(%d comments)\n", len(comments))
+	color.Printf("@g%s\n", *pr.HTMLURL)
+	color.Println()
+}
+
+func printPullRequests(client *github.Client, config *Config, repo *string) {
+	prs, _, err := client.PullRequests.List(config.Organization, *repo, nil)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if len(prs) == 0 {
+		return
+	}
+
+	terminal.Stdout.Color("y")
+	// Get color codes here: https://github.com/wsxiaoys/terminal/blob/master/color/color.go
+	color.Println("================================================================================")
+	color.Printf("@{!m}**** Pull requests for [%s]", *repo)
+	color.Println()
+	for _, pr := range prs {
+		printPullRequest(client, config, repo, &pr)
+	}
+}
+
+func listRepos(config *Config) {
 	t := &oauth.Transport{
 		Token: &oauth.Token{AccessToken: config.OauthToken},
 	}
@@ -21,33 +60,12 @@ func ListRepos(config *Config) {
 
 	// list all repositories for the authenticated user
 	for _, repo := range config.Repositories {
-		prs, _, _ := client.PullRequests.List(config.Organization, repo, nil)
-
-		if len(prs) == 0 {
-			continue
-		}
-
-		terminal.Stdout.Color("y")
-		// Get color codes here: https://github.com/wsxiaoys/terminal/blob/master/color/color.go
-		color.Printf("@{!kW}**** Pull requests for [%s]", repo)
-		color.Println()
-		for _, pr := range prs {
-			color.Printf("@w%d: %s\n", *pr.Number, *pr.Title)
-			if len(*pr.Body) == 0 {
-				color.Println("@r<no body>")
-			} else {
-				color.Printf("@b%s\n", *pr.Body)
-			}
-
-			comments, _, _ := client.PullRequests.ListComments(config.Organization, repo, *pr.Number, nil)
-			color.Printf("@{/}(%d comments)\n", len(comments))
-			color.Printf("@g%s\n", *pr.HTMLURL)
-			color.Println()
-		}
+		printPullRequests(client, config, &repo)
 	}
 }
 
 func main() {
+	//fmt.Println("Reading up config...")
 	file, e := ioutil.ReadFile("./privy.cfg")
 	if e != nil {
 		log.Fatal("File error: ", e)
@@ -57,5 +75,5 @@ func main() {
 	json.Unmarshal(file, &config)
 	//fmt.Printf("Config: %v\n", config)
 
-	ListRepos(&config)
+	listRepos(&config)
 }

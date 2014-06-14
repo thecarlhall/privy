@@ -1,7 +1,7 @@
 package main
 
 type Config struct {
-	Organization string   `json:"organization"`
 	OauthToken   string   `json:"oauth_token"`
+	Organization string   `json:"organization"`
 	Repositories []string `json:"repositories"`
 }

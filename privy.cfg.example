@@ -1,5 +1,7 @@
 {
-  "organization": "Some org",
   "oauth_token": "",
+	
+  "organization": "Some org",
+
   "repositories": []
 }
