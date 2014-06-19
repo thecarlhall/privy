@@ -40,7 +40,12 @@ func (self *PullRequestor) printPullRequest(repo string, pr github.PullRequest, 
 	if pr.Body == nil || len(*pr.Body) == 0 {
 		color.Println("@r<no body>")
 	} else {
-		color.Printf("@b%s\n", (*pr.Body)[:120])
+		bodyLen := len(*pr.Body)
+		if bodyLen > 120 {
+			bodyLen = 120
+		}
+
+		color.Printf("@b%s\n", (*pr.Body)[:bodyLen])
 	}
 
 	color.Printf("@{/}(%d comments)\n", len(comments))
