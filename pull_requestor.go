@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"strings"
 	"sync"
 
 	"github.com/google/go-github/github"
@@ -37,6 +38,8 @@ func (self *PullRequestor) printPullRequest(repo string, pr github.PullRequest, 
 
 	color.Printf("@w[%d] %s\n", *pr.Number, *pr.Title)
 
+	color.Printf("@{/}(Created on %s :: %d comments)\n", *pr.CreatedAt, len(comments))
+
 	if pr.Body == nil || len(*pr.Body) == 0 {
 		color.Println("@r<no body>")
 	} else {
@@ -48,7 +51,6 @@ func (self *PullRequestor) printPullRequest(repo string, pr github.PullRequest, 
 		color.Printf("@b%s\n", (*pr.Body)[:bodyLen])
 	}
 
-	color.Printf("@{/}(%d comments)\n", len(comments))
 	color.Printf("@g%s\n", (*pr.HTMLURL))
 	color.Println()
 	mut.Unlock()
@@ -71,8 +73,8 @@ func (self *PullRequestor) PrintPullRequests(repo string) {
 	terminal.Stdout.Color("y")
 
 	// Get color codes here: https://github.com/wsxiaoys/terminal/blob/master/color/color.go
-	color.Println("================================================================================")
-	color.Printf("@{!m}**** Pull requests for [%s]", repo)
+	color.Println(strings.Repeat("=", 80))
+	color.Printf("@{!m}%s [ %s ] %s", strings.Repeat("-", 15), strings.ToUpper(repo), strings.Repeat("-", 15))
 	color.Println()
 
 	var wg sync.WaitGroup

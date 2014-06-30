@@ -2,11 +2,16 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 
 	"code.google.com/p/goauth2/oauth"
 	"github.com/google/go-github/github"
+)
+
+const (
+	Debug = false
 )
 
 func main() {
@@ -18,7 +23,10 @@ func main() {
 
 	var config Config
 	json.Unmarshal(file, &config)
-	//fmt.Printf("Config: %v\n", config)
+
+	if Debug {
+		fmt.Printf("Config: %v\n", config)
+	}
 
 	t := &oauth.Transport{
 		Token: &oauth.Token{AccessToken: config.OauthToken},
