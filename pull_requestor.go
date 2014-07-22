@@ -24,8 +24,11 @@ type PullRequestor struct {
 	client *github.Client
 }
 
-func (self *PullRequestor) printPullRequest(repo string, pr github.PullRequest, wg *sync.WaitGroup) {
-	comments, _, err := self.client.PullRequests.ListComments(self.config.Organization, repo, *pr.Number, nil)
+func (self *PullRequestor) printPullRequest(organization string, project string, pr github.PullRequest, wg *sync.WaitGroup) {
+	if self.config.Debug {
+		log.Println("Listing comments")
+	}
+	comments, _, err := self.client.PullRequests.ListComments(organization, project, *pr.Number, nil)
 
 	if err != nil {
 		log.Fatal(err)
@@ -59,33 +62,39 @@ func (self *PullRequestor) printPullRequest(repo string, pr github.PullRequest, 
 	wg.Done()
 }
 
-func (self *PullRequestor) PrintPullRequests(repo string) {
-	prs, _, err := self.client.PullRequests.List(self.config.Organization, repo, nil)
+func (self *PullRequestor) PrintPullRequests(repo Repository) {
+	for _, project := range repo.Projects {
+		if self.config.Debug {
+			log.Println("Getting pull requests for", project)
+		}
+		prs, _, err := self.client.PullRequests.List(repo.Organization, project, nil)
 
-	if err != nil {
-		log.Fatal(err)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		if len(prs) == 0 {
+			continue
+		}
+
+		terminal.Stdout.Color("y")
+
+		// Get color codes here: https://github.com/wsxiaoys/terminal/blob/master/color/color.go
+		color.Println(strings.Repeat("=", 80))
+		color.Printf("@{!m}%s [ %s ] %s", strings.Repeat("-", 15), strings.ToUpper(project), strings.Repeat("-", 15))
+		color.Println()
+
+		var wg sync.WaitGroup
+
+		for _, pr := range prs {
+			wg.Add(1)
+
+			go self.printPullRequest(repo.Organization, project, pr, &wg)
+		}
+
+		// Wait for the threads to finish their stuff.
+		wg.Wait()
 	}
-
-	if len(prs) == 0 {
-		return
-	}
-
-	terminal.Stdout.Color("y")
-
-	// Get color codes here: https://github.com/wsxiaoys/terminal/blob/master/color/color.go
-	color.Println(strings.Repeat("=", 80))
-	color.Printf("@{!m}%s [ %s ] %s", strings.Repeat("-", 15), strings.ToUpper(repo), strings.Repeat("-", 15))
-	color.Println()
-
-	var wg sync.WaitGroup
-
-	for _, pr := range prs {
-		wg.Add(1)
-		go self.printPullRequest(repo, pr, &wg)
-	}
-
-	// Wait for the threads to finish their stuff.
-	wg.Wait()
 }
 
 func (self *PullRequestor) ListRepos() {

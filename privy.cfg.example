@@ -1,7 +1,15 @@
 {
-  "oauth_token": "",
-	
-  "organization": "Some org",
+	"debug": true,
 
-  "repositories": []
+  "oauth_token": "12345",
+	
+  "repositories": [
+		{
+			"organization": "org1",
+			"projects": [
+				"project1",
+				"project2"
+			]
+		}
+	]
 }
