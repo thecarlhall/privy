@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"strings"
 	"sync"
@@ -80,8 +81,11 @@ func (self *PullRequestor) PrintPullRequests(repo Repository) {
 		terminal.Stdout.Color("y")
 
 		// Get color codes here: https://github.com/wsxiaoys/terminal/blob/master/color/color.go
+		title := fmt.Sprintf(" [ %s ] ", strings.ToUpper(project))
+		paddingWidth := (80 - len(title)) / 2
+
 		color.Println(strings.Repeat("=", 80))
-		color.Printf("@{!m}%s [ %s ] %s", strings.Repeat("-", 15), strings.ToUpper(project), strings.Repeat("-", 15))
+		color.Printf("@{!m}%s%s%s", strings.Repeat("-", paddingWidth), title, strings.Repeat("-", paddingWidth))
 		color.Println()
 
 		var wg sync.WaitGroup
