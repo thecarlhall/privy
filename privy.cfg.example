@@ -1,3 +1,5 @@
+## Copy this to ~/.privy.cfg
+
 {
 	"debug": true,
 
@@ -10,6 +12,13 @@
 				"project1",
 				"project2"
 			]
-		}
+		},
+		{
+			"organization": "org2",
+			"projects": [
+				"project3",
+				"project4"
+			]
+		},
 	]
 }

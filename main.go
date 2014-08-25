@@ -2,15 +2,26 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
+	"os/user"
 
 	"code.google.com/p/goauth2/oauth"
 	"github.com/google/go-github/github"
 )
 
+func homeDir() string {
+	usr, err := user.Current()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return usr.HomeDir
+}
+
 func main() {
-	file, e := ioutil.ReadFile("./privy.cfg")
+	file, e := ioutil.ReadFile(fmt.Sprintf("%s/.privy.cfg", homeDir()))
 	if e != nil {
 		log.Fatal("File error: ", e)
 	}
