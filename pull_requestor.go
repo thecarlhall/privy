@@ -1,19 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"strings"
-	"sync"
 
 	"github.com/google/go-github/github"
 
 	"github.com/wsxiaoys/terminal"
 	"github.com/wsxiaoys/terminal/color"
-)
-
-var (
-	mut sync.Mutex
 )
 
 func NewPullRequestor(config *Config, client *github.Client) *PullRequestor {
@@ -25,7 +21,7 @@ type PullRequestor struct {
 	client *github.Client
 }
 
-func (self *PullRequestor) printPullRequest(organization string, project string, pr github.PullRequest, wg *sync.WaitGroup) {
+func (self *PullRequestor) writePullRequest(organization string, project string, pr github.PullRequest, out chan<- string) {
 	if self.config.Debug {
 		log.Println("Listing comments")
 	}
@@ -35,36 +31,36 @@ func (self *PullRequestor) printPullRequest(organization string, project string,
 		log.Fatal(err)
 	}
 
-	// Keep the mutex down here so we can make the list requests in parallel, but
-	// not clobber stdout while printing stuff. A better approach would be to
-	// throw this in a channel.
-	mut.Lock()
+	var buffer bytes.Buffer
 
-	color.Printf("@w[%d] %s\n", *pr.Number, *pr.Title)
+	buffer.WriteString(color.Sprintf("@w[%d] %s\n", *pr.Number, *pr.Title))
 
-	color.Printf("@{/}(Created on %s :: %d comments)\n", *pr.CreatedAt, len(comments))
+	buffer.WriteString(color.Sprintf("@{/}(Created on %s :: %d comments)\n", *pr.CreatedAt, len(comments)))
 
 	if pr.Body == nil || len(*pr.Body) == 0 {
-		color.Println("@r<no body>")
+		buffer.WriteString(color.Sprint("@r<no body>\n"))
 	} else {
 		bodyLen := len(*pr.Body)
 		if bodyLen > 120 {
 			bodyLen = 120
 		}
 
-		color.Printf("@b%s\n", (*pr.Body)[:bodyLen])
+		buffer.WriteString(color.Sprintf("@b%s\n", (*pr.Body)[:bodyLen]))
 	}
 
-	color.Printf("@g%s\n", (*pr.HTMLURL))
-	color.Println()
-	mut.Unlock()
+	buffer.WriteString(color.Sprintf("@g%s\n\n", (*pr.HTMLURL)))
 
-	// Signals we're done printing this one element.
-	wg.Done()
+	if self.config.Debug {
+		log.Println("Done printing pull requests")
+	}
+
+	out <- buffer.String()
 }
 
-func (self *PullRequestor) PrintPullRequests(repo Repository) {
+func (self *PullRequestor) PrintPullRequests(repo Repository, done chan<- bool) {
 	for _, project := range repo.Projects {
+		var buffer bytes.Buffer
+
 		if self.config.Debug {
 			log.Println("Getting pull requests for", project)
 		}
@@ -78,32 +74,40 @@ func (self *PullRequestor) PrintPullRequests(repo Repository) {
 			continue
 		}
 
+		// use a channel to collect all of the writes to a buffer then write it all at once
+		printer := make(chan string)
+		defer close(printer)
+		for _, pr := range prs {
+			go self.writePullRequest(repo.Organization, project, pr, printer)
+		}
+
+		// write out the printer to the terminal after everything has been collected
 		terminal.Stdout.Color("y")
 
 		// Get color codes here: https://github.com/wsxiaoys/terminal/blob/master/color/color.go
 		title := fmt.Sprintf(" [ %s ] ", strings.ToUpper(project))
 		paddingWidth := (80 - len(title)) / 2
 
-		color.Println(strings.Repeat("=", 80))
-		color.Printf("@{!m}%s%s%s", strings.Repeat("-", paddingWidth), title, strings.Repeat("-", paddingWidth))
-		color.Println()
+		buffer.WriteString(color.Sprintf("%s\n", strings.Repeat("=", 80)))
+		buffer.WriteString(color.Sprintf("@{!m}%s%s%s\n", strings.Repeat("-", paddingWidth), title, strings.Repeat("-", paddingWidth)))
 
-		var wg sync.WaitGroup
-
-		for _, pr := range prs {
-			wg.Add(1)
-
-			go self.printPullRequest(repo.Organization, project, pr, &wg)
+		for i := 0; i < len(prs); i++ {
+			buffer.WriteString(<-printer)
 		}
-
-		// Wait for the threads to finish their stuff.
-		wg.Wait()
+		color.Print(buffer.String())
 	}
+	done <- true
 }
 
 func (self *PullRequestor) ListRepos() {
 	// list all repositories for the authenticated user
+	done := make(chan bool)
+	defer close(done)
 	for _, repo := range self.config.Repositories {
-		self.PrintPullRequests(repo)
+		go self.PrintPullRequests(repo, done)
+	}
+
+	for i := 0; i < len(self.config.Repositories); i++ {
+		<-done
 	}
 }
