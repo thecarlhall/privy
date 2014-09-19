@@ -58,11 +58,7 @@ func (self *PullRequestor) writePullRequest(organization string, project string,
 }
 
 func (self *PullRequestor) PrintPullRequests(repo Repository, done chan<- struct{}) {
-	//out := make(chan string)
-	//defer close(out)
-
 	for _, project := range repo.Projects {
-		//go func() {
 		var buffer bytes.Buffer
 		if self.config.Debug {
 			log.Println("Getting pull requests for", project)
@@ -74,8 +70,6 @@ func (self *PullRequestor) PrintPullRequests(repo Repository, done chan<- struct
 		}
 
 		if len(prs) == 0 {
-			//out <- ""
-			//return
 			continue
 		}
 
@@ -102,13 +96,8 @@ func (self *PullRequestor) PrintPullRequests(repo Repository, done chan<- struct
 		}
 
 		color.Print(buffer.String())
-		//out <- buffer.String()
-		//}()
 	}
 
-	//for i := 0; i < len(repo.Projects); i++ {
-	//	fmt.Print(<-out)
-	//}
 	done <- struct{}{}
 }
 
