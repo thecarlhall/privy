@@ -23,7 +23,7 @@ type PullRequestor struct {
 
 func (self *PullRequestor) writePullRequest(organization string, project string, pr github.PullRequest, out chan<- string) {
 	if self.config.Debug {
-		log.Println("Listing comments")
+		log.Println("Listing comments for", project)
 	}
 	comments, _, err := self.client.PullRequests.ListComments(organization, project, *pr.Number, nil)
 
@@ -51,17 +51,18 @@ func (self *PullRequestor) writePullRequest(organization string, project string,
 	buffer.WriteString(color.Sprintf("@g%s\n\n", (*pr.HTMLURL)))
 
 	if self.config.Debug {
-		log.Println("Done printing pull requests")
+		log.Println("Done printing pull requests for", project)
 	}
 
 	out <- buffer.String()
 }
 
-func (self *PullRequestor) PrintPullRequests(repo Repository, isDone chan<- bool) {
-	//done := make(chan bool)
+func (self *PullRequestor) PrintPullRequests(repo Repository, done chan<- struct{}) {
+	//out := make(chan string)
+	//defer close(out)
 
 	for _, project := range repo.Projects {
-		//		go func() {
+		//go func() {
 		var buffer bytes.Buffer
 		if self.config.Debug {
 			log.Println("Getting pull requests for", project)
@@ -73,14 +74,15 @@ func (self *PullRequestor) PrintPullRequests(repo Repository, isDone chan<- bool
 		}
 
 		if len(prs) == 0 {
-			continue
-			//done <- false
+			//out <- ""
 			//return
+			continue
 		}
 
 		// use a channel to collect all of the writes to a buffer then write it all at once
 		printer := make(chan string)
 		defer close(printer)
+
 		for _, pr := range prs {
 			go self.writePullRequest(repo.Organization, project, pr, printer)
 		}
@@ -89,7 +91,7 @@ func (self *PullRequestor) PrintPullRequests(repo Repository, isDone chan<- bool
 		terminal.Stdout.Color("y")
 
 		// Get color codes here: https://github.com/wsxiaoys/terminal/blob/master/color/color.go
-		title := fmt.Sprintf(" [ %s ] ", strings.ToUpper(project))
+		title := fmt.Sprintf(" [ %s (%d) ] ", strings.ToUpper(project), len(prs))
 		paddingWidth := (80 - len(title)) / 2
 
 		buffer.WriteString(color.Sprintf("%s\n", strings.Repeat("=", 80)))
@@ -98,22 +100,23 @@ func (self *PullRequestor) PrintPullRequests(repo Repository, isDone chan<- bool
 		for i := 0; i < len(prs); i++ {
 			buffer.WriteString(<-printer)
 		}
-		color.Print(buffer.String())
 
-		//done <- true
-		//		}()
+		color.Print(buffer.String())
+		//out <- buffer.String()
+		//}()
 	}
 
 	//for i := 0; i < len(repo.Projects); i++ {
-	//	<-done
+	//	fmt.Print(<-out)
 	//}
-	isDone <- true
+	done <- struct{}{}
 }
 
 func (self *PullRequestor) ListRepos() {
 	// list all repositories for the authenticated user
-	done := make(chan bool)
+	done := make(chan struct{})
 	defer close(done)
+
 	for _, repo := range self.config.Repositories {
 		go self.PrintPullRequests(repo, done)
 	}
