@@ -57,10 +57,12 @@ func (self *PullRequestor) writePullRequest(organization string, project string,
 	out <- buffer.String()
 }
 
-func (self *PullRequestor) PrintPullRequests(repo Repository, done chan<- bool) {
-	for _, project := range repo.Projects {
-		var buffer bytes.Buffer
+func (self *PullRequestor) PrintPullRequests(repo Repository, isDone chan<- bool) {
+	//done := make(chan bool)
 
+	for _, project := range repo.Projects {
+		//		go func() {
+		var buffer bytes.Buffer
 		if self.config.Debug {
 			log.Println("Getting pull requests for", project)
 		}
@@ -72,6 +74,8 @@ func (self *PullRequestor) PrintPullRequests(repo Repository, done chan<- bool) 
 
 		if len(prs) == 0 {
 			continue
+			//done <- false
+			//return
 		}
 
 		// use a channel to collect all of the writes to a buffer then write it all at once
@@ -95,8 +99,15 @@ func (self *PullRequestor) PrintPullRequests(repo Repository, done chan<- bool) 
 			buffer.WriteString(<-printer)
 		}
 		color.Print(buffer.String())
+
+		//done <- true
+		//		}()
 	}
-	done <- true
+
+	//for i := 0; i < len(repo.Projects); i++ {
+	//	<-done
+	//}
+	isDone <- true
 }
 
 func (self *PullRequestor) ListRepos() {
