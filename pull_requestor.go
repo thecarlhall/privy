@@ -59,7 +59,6 @@ func (self *PullRequestor) writePullRequest(organization string, project string,
 
 func (self *PullRequestor) PrintPullRequests(repo Repository, done chan<- struct{}) {
 	for _, project := range repo.Projects {
-		var buffer bytes.Buffer
 		if self.config.Debug {
 			log.Println("Getting pull requests for", project)
 		}
@@ -88,6 +87,7 @@ func (self *PullRequestor) PrintPullRequests(repo Repository, done chan<- struct
 		title := fmt.Sprintf(" [ %s (%d) ] ", strings.ToUpper(project), len(prs))
 		paddingWidth := (80 - len(title)) / 2
 
+		var buffer bytes.Buffer
 		buffer.WriteString(color.Sprintf("%s\n", strings.Repeat("=", 80)))
 		buffer.WriteString(color.Sprintf("@{!m}%s%s%s\n", strings.Repeat("-", paddingWidth), title, strings.Repeat("-", paddingWidth)))
 
