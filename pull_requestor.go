@@ -58,44 +58,60 @@ func (self *PullRequestor) writePullRequest(organization string, project string,
 }
 
 func (self *PullRequestor) PrintPullRequests(repo Repository, done chan<- struct{}) {
-	for _, project := range repo.Projects {
-		if self.config.Debug {
-			log.Println("Getting pull requests for", project)
-		}
-		prs, _, err := self.client.PullRequests.List(repo.Organization, project, nil)
+	// write out the printer to the terminal after everything has been collected
+	terminal.Stdout.Color("y")
 
-		if err != nil {
-			log.Fatal(err)
-		}
+	outs := make([]chan string, len(repo.Projects))
 
-		if len(prs) == 0 {
-			continue
-		}
+	for i, project := range repo.Projects {
+		outs[i] = make(chan string)
+		defer close(outs[i])
 
-		// use a channel to collect all of the writes to a buffer then write it all at once
-		printer := make(chan string)
-		defer close(printer)
+		go func(project string, out chan<- string) {
+			if self.config.Debug {
+				log.Println("Getting pull requests for", project)
+			}
+			prs, _, err := self.client.PullRequests.List(repo.Organization, project, nil)
 
-		for _, pr := range prs {
-			go self.writePullRequest(repo.Organization, project, pr, printer)
-		}
+			if err != nil {
+				log.Fatal(err)
+			}
 
-		// write out the printer to the terminal after everything has been collected
-		terminal.Stdout.Color("y")
+			if len(prs) == 0 {
+				out <- ""
+				return
+			}
 
-		// Get color codes here: https://github.com/wsxiaoys/terminal/blob/master/color/color.go
-		title := fmt.Sprintf(" [ %s (%d) ] ", strings.ToUpper(project), len(prs))
-		paddingWidth := (80 - len(title)) / 2
+			// use a channel to collect all of the writes to a buffer then write it all at once
+			printer := make(chan string)
+			defer close(printer)
 
-		var buffer bytes.Buffer
-		buffer.WriteString(color.Sprintf("%s\n", strings.Repeat("=", 80)))
-		buffer.WriteString(color.Sprintf("@{!m}%s%s%s\n", strings.Repeat("-", paddingWidth), title, strings.Repeat("-", paddingWidth)))
+			for _, pr := range prs {
+				go self.writePullRequest(repo.Organization, project, pr, printer)
+			}
 
-		for i := 0; i < len(prs); i++ {
-			buffer.WriteString(<-printer)
-		}
+			// Get color codes here: https://github.com/wsxiaoys/terminal/blob/master/color/color.go
+			width := 80
+			title := fmt.Sprintf(" [ %s (%d) ] ", strings.ToUpper(project), len(prs))
+			paddingWidth := (width - len(title)) / 2
 
-		color.Print(buffer.String())
+			header := strings.Repeat("=", width)
+			padding := strings.Repeat("-", paddingWidth)
+
+			var buffer bytes.Buffer
+			buffer.WriteString(color.Sprintf("@y%s\n", header))
+			buffer.WriteString(color.Sprintf("@{!m}%s%s%s\n", padding, title, padding))
+
+			for i := 0; i < len(prs); i++ {
+				buffer.WriteString(<-printer)
+			}
+
+			out <- buffer.String()
+		}(project, outs[i])
+	}
+
+	for _, out := range outs {
+		color.Print(<-out)
 	}
 
 	done <- struct{}{}
