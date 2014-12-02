@@ -1,4 +1,4 @@
 Privy
 =====
 
-Scan through projects on GitHub and present all open the pull requests.
+Scan through projects on GitHub and present all of the open pull requests.
